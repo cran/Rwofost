@@ -24,21 +24,23 @@ struct WofostControl {
 	//bool npk_model = false;  //if model is npk, default false
 
 	double latitude, elevation;
-	double CO2 = 410;
+	double CO2 = 360;
 	
 	bool usePENMAN = true;
-	double ANGSTA = -0.18;
-	double ANGSTB = -0.55;
+	double ANGSTA = 0.18;
+	double ANGSTB = 0.55;
 
 	unsigned IDESOW;
-	int INYRG, ISTCHO, IDLSOW, IENCHO, IDAYEN, IDURMX;
-	int IOXWL;   //IOX for water limited
+	int INYRG, ISTCHO, IDLSOW, IDURMX;
+	//IENCHO, IDAYEN
+	bool stop_maturity = true;
+	bool IOXWL = false;  //oxygen limitation
 	//int	IPRODL, IWB; // water limited (1) or potential (0)
 	bool water_limited = false; 
 	// nutrient_limited = false;
-	std::vector<double> N_amount, P_amount, K_amount;
-	std::vector<long> NPKdates;
-	bool useForce;
+	//std::vector<double> N_amount, P_amount, K_amount;
+	//std::vector<long> NPKdates;
+	bool useForce = false;
 };
 
 
@@ -103,7 +105,8 @@ struct WofostCrop {
 	
 
 	//struct states {
-	double RD, RDOLD, GRLV, DWRT, DWLV, DWST, DWSO;
+	double RD=0;
+	double RDOLD, GRLV, DWRT, DWLV, DWST, DWSO;
 	double DVS, LAI, LAIEXP, WRT, WLV, WST, WSO;
 	double TWRT, TWLV, TWST, TWSO, TAGP, TSUM, TSUME;
 	double TADW, SAI, PAI; 
@@ -113,9 +116,12 @@ struct WofostCrop {
 // variables
 	bool alive;
 	int emergence, ILVOLD, IDANTH;
-	double EFF, AMAX, PGASS, TRA, RFTRA, TRANRF;
+	double EFF, AMAX, PGASS, RFTRA, TRANRF;
 	double LASUM, KDif, TRAMX;
-	double FR, FL, FS, FO;
+	double Fr, Fl, Fs, Fo;
+// FS is a system variable on solaris so renamed to Fs etc
+	double TRA=0; 
+
 	double TMINRA, DSLV, SLAT;
 	double PMRES;
 	std::vector<double> SLA = std::vector<double>(366), LV = std::vector<double>(366), LVAGE = std::vector<double>(366), TMNSAV = std::vector<double>(7);
@@ -201,8 +207,8 @@ struct WofostSoil {
 	double RIN, RINold, RIRR, DW, PERC, LOSS, DWLOW;
 	
 // STATES
-	double SM, SS, W, WI, DSLR, WLOW, WLOWI, WWLOW;
-
+	double SM, ss, W, WI, DSLR, WLOW, WLOWI, WWLOW;
+// SS is a system variable on SOLARIS. Hence ss.
 	
 // VARIABLES
 	double RDM;
@@ -254,7 +260,8 @@ struct WofostOutput {
 struct WofostModel {
 
 	unsigned step, time, DOY, npk_step;
-	int IDHALT, ISTATE, IOX;
+	int IDHALT, ISTATE;
+	//bool IOX;
 
 	std::vector<std::string> messages;
 	bool fatalError;

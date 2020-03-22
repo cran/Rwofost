@@ -43,6 +43,12 @@ bool WofostModel::weather_step() {
 		PENMAN(); // E0, ES0, ET0
 		PENMAN_MONTEITH(); // ET0
 
+	//(evapo)transpiration rates
+		EVTRA();
+		
+		//soil.EVWMX = atm.E0;
+		//soil.EVSMX = atm.ES0;
+
 	}
 	return true;
 }
@@ -54,7 +60,7 @@ void WofostModel::model_output(){
 			{double(step), atm.ANGOT, atm.ATMTR, atm.COSLD, atm.DAYL, 
 				atm.DAYLP, atm.DifPP, atm.DSINBE, atm.SINLD, soil.EVWMX,
 				crop.TSUM, crop.DVR, crop.DVS, soil.EVS, crop.LAI, crop.LASUM, 
-				crop.SAI, crop.PGASS, crop.RD, soil.SM,  crop.FL, crop.FO, crop.FR, crop.FS,
+				crop.SAI, crop.PGASS, crop.RD, soil.SM,  crop.Fl, crop.Fo, crop.Fr, crop.Fs,
 				crop.PMRES,	crop.TAGP, crop.TRA, crop.TRAMX, crop.RFTRA, 
 				crop.WRT, crop.WLV, crop.WST, crop.WSO,
 				crop.TWRT, crop.TWLV, crop.TWST, crop.TWSO, crop.GRLV, crop.SLAT
@@ -97,19 +103,17 @@ void WofostModel::model_initialize() {
 		ISTATE = 3;
 	} else if (control.ISTCHO == 1) { // model starts at sowing
 		ISTATE = 1;
-	} else if (control.ISTCHO == 2) { // model starts prior to earliest possible sowing date
-		ISTATE = 0;
-		STDAY_initialize();
+	} else {
+		std::string m = "start_sowing (ISTCHO) must be 0 or 1";
+	    messages.push_back(m);
+	    fatalError = true;
 	}
+	//	if (control.ISTCHO == 2) { // model starts prior to earliest possible sowing date
+	//	ISTATE = 0;
+	//	STDAY_initialize();
+	//}
 
 //	ISTATE = 3;
-
-//	control.IWB = control.IPRODL;
-	if (control.water_limited) {
-		IOX = control.IOXWL;  
-	} else {
-		IOX = 0;
-	}
 
 	if (control.output_option == "TEST") {
 		output.names = {"step", "ANGOT", "ATMTR", "COSLD", "DAYL", "DAYLP", "DIFPP",
@@ -189,8 +193,8 @@ void WofostModel::force_states() {
 		if (forcer.force_WSO)  crop.WSO = forcer.WSO[time];
 		if (forcer.force_WST)  crop.WST = forcer.WST[time];
 		if (forcer.force_RFTRA) crop.RFTRA = forcer.RFTRA[time];
-		if (forcer.force_FR)   crop.FR = forcer.FR[time];
-		if (forcer.force_FL)   crop.FL = forcer.FL[time];
+		if (forcer.force_FR)   crop.Fr = forcer.FR[time];
+		if (forcer.force_FL)   crop.Fl = forcer.FL[time];
 	}
 }
 
@@ -222,10 +226,11 @@ void WofostModel::model_run() {
 		//if(control.nutrient_limited){
 		//	npk_soil_dynamics_rates();
 		//} else{
-			soil_rates();
+		soil_rates();
 		//}
-		soil.EVWMX = atm.E0;
-		soil.EVSMX = atm.ES0;
+		//soil.EVWMX = atm.E0;
+		//soil.EVSMX = atm.ES0;
+		
 		if (step >= cropstart_step) {
 			if (ISTATE == 0 ) { // find day of sowing
 				STDAY();
@@ -266,6 +271,9 @@ void WofostModel::model_run() {
 	}
 	crop.emergence = step;
 
+
+	unsigned maxdur = step + control.IDURMX;
+	/*
 	unsigned maxdur;
 	if (control.IENCHO == 1) {
 		maxdur = cropstart_step + control.IDAYEN;
@@ -277,7 +285,9 @@ void WofostModel::model_run() {
 		// throw error
 		maxdur = step + 365;
 	}
-
+	*/
+	
+	
 //	crop_initialize();
 
 	while ((crop.alive) && (step < maxdur)) {
@@ -305,8 +315,10 @@ void WofostModel::model_run() {
 			break;
 		}
 	}
-	if (control.IENCHO == 1) {
+	//if (control.IENCHO == 1) {
+	if (!control.stop_maturity) {
 		// should continue until maxdur if water balance if IENCHO is 1
+	    crop.TRA = 0;
 		while (step < maxdur) {
 			weather_step();
 			soil_rates();
