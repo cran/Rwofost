@@ -38,14 +38,14 @@ bool WofostModel::weather_step() {
 */
 
 		DOY = doy_from_days(wth.date[time]);
-		
+
 		ASTRO();
 		PENMAN(); // E0, ES0, ET0
 		PENMAN_MONTEITH(); // ET0
 
 	//(evapo)transpiration rates
 		EVTRA();
-		
+
 		//soil.EVWMX = atm.E0;
 		//soil.EVSMX = atm.ES0;
 
@@ -57,19 +57,20 @@ bool WofostModel::weather_step() {
 void WofostModel::model_output(){
 	if (control.output_option == "TEST") {
 		output.values.insert(output.values.end(),
-			{double(step), atm.ANGOT, atm.ATMTR, atm.COSLD, atm.DAYL, 
+			{double(step), atm.ANGOT, atm.ATMTR, atm.COSLD, atm.DAYL,
 				atm.DAYLP, atm.DifPP, atm.DSINBE, atm.SINLD, soil.EVWMX,
-				crop.TSUM, crop.DVR, crop.DVS, soil.EVS, crop.LAI, crop.LASUM, 
-				crop.SAI, crop.PGASS, crop.RD, soil.SM,  crop.Fl, crop.Fo, crop.Fr, crop.Fs,
-				crop.PMRES,	crop.TAGP, crop.TRA, crop.TRAMX, crop.RFTRA, 
-				crop.WRT, crop.WLV, crop.WST, crop.WSO,
-				crop.TWRT, crop.TWLV, crop.TWST, crop.TWSO, crop.GRLV, crop.SLAT
+				crop.s.TSUM, crop.r.DVR, crop.s.DVS, soil.EVS, crop.s.LAI, crop.LASUM,
+				crop.s.SAI, crop.PGASS, crop.s.RD, soil.SM,  crop.Fl, crop.Fo, crop.Fr, crop.Fs,
+				crop.PMRES,	crop.s.TAGP, crop.TRA, crop.TRAMX, crop.RFTRA,
+				crop.s.WRT, crop.s.WLV, crop.s.WST, crop.s.WSO,
+				crop.s.TWRT, crop.s.TWLV, crop.s.TWST, crop.s.TWSO, crop.s.GRLV, crop.SLAT
 			}
-		);	
+		);
 	} else {
 		output.values.insert(output.values.end(),
-			{double(step), crop.TSUM, crop.DVS, crop.LAI,   
-				crop.WRT, crop.WLV, crop.WST, crop.WSO
+			{double(step), crop.s.TSUM, crop.s.DVS, crop.s.LAI,
+				crop.s.WRT, crop.s.WLV, crop.s.WST, crop.s.WSO,
+				crop.TRA, soil.EVS, soil.EVW, soil.SM
 			}
 		);
 	}
@@ -80,6 +81,11 @@ void WofostModel::model_output(){
 void WofostModel::model_initialize() {
 
 	fatalError = false;
+	if (wth.date.size() < 1) {
+		std::string m = "no weather data";
+	    messages.push_back(m);
+	    fatalError = true;
+	}
 
 // start time (relative to weather data)
 	if (control.modelstart < wth.date[0]) {
@@ -117,16 +123,16 @@ void WofostModel::model_initialize() {
 
 	if (control.output_option == "TEST") {
 		output.names = {"step", "ANGOT", "ATMTR", "COSLD", "DAYL", "DAYLP", "DIFPP",
-			"DSINBE", "SINLD", "EVWMX", "TSUM", "DVR", "DVS", "EVS", "LAI", "LASUM", "SAI", "PGASS", "RD", "SM", "FL", "FO", "FR", "FS", "PMRES", "TAGP", 
-			"TRA", "TRAMX", "RFTRA", "WRT", "WLV", "WST", "WSO", 
+			"DSINBE", "SINLD", "EVWMX", "TSUM", "DVR", "DVS", "EVS", "LAI", "LASUM", "SAI", "PGASS", "RD", "SM", "FL", "FO", "FR", "FS", "PMRES", "TAGP",
+			"TRA", "TRAMX", "RFTRA", "WRT", "WLV", "WST", "WSO",
 			"TWRT", "TWLV", "TWST", "TWSO", "GRLV", "SLAT"};
 	} else {
-		output.names = {"step", "TSUM", "DVS", "LAI", "WRT", "WLV", "WST", "WSO"};
+		output.names = {"step", "TSUM", "DVS", "LAI", "WRT", "WLV", "WST", "WSO", "TRA", "EVS", "EVW", "SM"};
 	}
 
 	output.values.resize(0);
 	output.values.reserve(output.names.size() * 150);
-	
+
 	DOY = doy_from_days(wth.date[time]);
     crop.alive = true;
 
@@ -138,33 +144,34 @@ void WofostModel::model_initialize() {
 		npk_demand_uptake_initialize();
 	}
 	*/
-	
+
 	if (ISTATE == 1) {
-		crop.DVS = -0.1;
+		crop.s.DVS = -0.1;
 	} else {
-		crop.DVS = 0;
+		crop.s.DVS = 0;
     }
-	
-	crop.WRT = 0.;
-    crop.TADW = 0.;
-    crop.WST = 0.;
-    crop.WSO = 0.;
-    crop.WLV = 0.;
-    crop.LV[0] = 0.;
-    crop.LASUM = 0.;
-    crop.LAIEXP = 0.;
-    crop.LAI = 0.;
-    crop.SAI = 0.;
-    crop.PAI = 0.;
-    crop.RD = crop.p.RDI;
-	crop.TSUM = 0;
-	crop.TSUME = 0.;
-	crop.DTSUME = 0.;
-    crop.TRA = 0.;
-    crop.RFTRA = 0.;
-	crop.GASS = 0.;
-	crop.GRLV = 0;
-	
+
+	crop.s.WRT = 0;
+    crop.s.TADW = 0;
+    crop.s.WST = 0;
+    crop.s.WSO = 0;
+    crop.s.WLV = 0;
+    crop.LV[0] = 0;
+    crop.LASUM = 0;
+    crop.s.LAIEXP = 0;
+    crop.s.LAI = 0;
+	crop.KDif = 0;
+    crop.s.SAI = 0;
+    crop.s.PAI = 0;
+    crop.s.RD = crop.p.RDI;
+	crop.s.TSUM = 0;
+	crop.s.TSUME = 0;
+	crop.r.DTSUME = 0;
+    crop.TRA = 0;
+    crop.RFTRA = 0;
+	crop.r.GASS = 0;
+	crop.s.GRLV = 0;
+
 	// adjusting for CO2 effects
     double CO2AMAXadj = AFGEN(crop.p.CO2AMAXTB, control.CO2);
 	for(size_t i=1; i<crop.p.AMAXTB.size(); i=i+2) {
@@ -183,15 +190,15 @@ void WofostModel::model_initialize() {
 
 void WofostModel::force_states() {
 	if (control.useForce) {
-		if (forcer.force_DVS)  crop.DVS = forcer.DVS[time];
-		if (forcer.force_LAI)  crop.LAI = forcer.LAI[time];
-		if (forcer.force_SAI)  crop.SAI = forcer.SAI[time];
-		if (forcer.force_PAI)  crop.PAI = forcer.PAI[time];
+		if (forcer.force_DVS)  crop.s.DVS = forcer.DVS[time];
+		if (forcer.force_LAI)  crop.s.LAI = forcer.LAI[time];
+		if (forcer.force_SAI)  crop.s.SAI = forcer.SAI[time];
+		if (forcer.force_PAI)  crop.s.PAI = forcer.PAI[time];
 		if (forcer.force_SM )  soil.SM  = forcer.SM[time];
-		if (forcer.force_WLV)  crop.WLV = forcer.WLV[time];
-		if (forcer.force_WRT)  crop.WRT = forcer.WRT[time];
-		if (forcer.force_WSO)  crop.WSO = forcer.WSO[time];
-		if (forcer.force_WST)  crop.WST = forcer.WST[time];
+		if (forcer.force_WLV)  crop.s.WLV = forcer.WLV[time];
+		if (forcer.force_WRT)  crop.s.WRT = forcer.WRT[time];
+		if (forcer.force_WSO)  crop.s.WSO = forcer.WSO[time];
+		if (forcer.force_WST)  crop.s.WST = forcer.WST[time];
 		if (forcer.force_RFTRA) crop.RFTRA = forcer.RFTRA[time];
 		if (forcer.force_FR)   crop.Fr = forcer.FR[time];
 		if (forcer.force_FL)   crop.Fl = forcer.FL[time];
@@ -210,18 +217,16 @@ void WofostModel::model_run() {
 // model can start long before crop and run the soil water balance
 	bool crop_emerged = false;
 
-// moved here for comparison with pcse
-	crop_initialize();
 	force_states();
-	
+
 	if (ISTATE == 1) {
-		crop.DVS = -0.1;
+		crop.s.DVS = -0.1;
 	}
 //
-	
+
 	while (! crop_emerged) {
 		force_states();
-	
+
 		weather_step();
 		//if(control.nutrient_limited){
 		//	npk_soil_dynamics_rates();
@@ -230,25 +235,25 @@ void WofostModel::model_run() {
 		//}
 		//soil.EVWMX = atm.E0;
 		//soil.EVSMX = atm.ES0;
-		
+
 		if (step >= cropstart_step) {
 			if (ISTATE == 0 ) { // find day of sowing
 				STDAY();
-			} else if (ISTATE == 1) { // find day of emergence				
+			} else if (ISTATE == 1) { // find day of emergence
 				//ugly
-				crop.DVS = crop.DVS + crop.DVR;
+				crop.s.DVS = crop.s.DVS + crop.r.DVR;
 				if (control.useForce & forcer.force_DVS) {
-					crop.DVS = forcer.DVS[time];
+					crop.s.DVS = forcer.DVS[time];
 				}
-			
-				crop.TSUME = crop.TSUME + crop.DTSUME;
-				if (crop.DVS >= 0) {
+
+				crop.s.TSUME = crop.s.TSUME + crop.r.DTSUME;
+				if (crop.s.DVS >= 0) {
 					ISTATE = 3;
 					crop_emerged = true;
-					crop.DVS = 0;
+					crop.s.DVS = 0;
 				} else {
-					crop.DTSUME = LIMIT(0., crop.p.TEFFMX - crop.p.TBASEM, atm.TEMP - crop.p.TBASEM);
-					crop.DVR = 0.1 * crop.DTSUME / crop.p.TSUMEM;
+					crop.r.DTSUME = LIMIT(0., crop.p.TEFFMX - crop.p.TBASEM, atm.TEMP - crop.p.TBASEM);
+					crop.r.DVR = 0.1 * crop.r.DTSUME / crop.p.TSUMEM;
 				}
 			} else {
 				crop_emerged = true;
@@ -270,7 +275,7 @@ void WofostModel::model_run() {
 		}
 	}
 	crop.emergence = step;
-
+	crop_initialize();
 
 	unsigned maxdur = step + control.IDURMX;
 	/*
@@ -286,14 +291,14 @@ void WofostModel::model_run() {
 		maxdur = step + 365;
 	}
 	*/
-	
-	
+
+
 //	crop_initialize();
 
 	while ((crop.alive) && (step < maxdur)) {
-		
+
 		force_states();
-		
+
 		if (! weather_step()) break;
 		crop_rates();
 		//if (control.nutrient_limited){

@@ -62,46 +62,45 @@ SMFCF   R*4  soil moisture content at field capacity          cm3 cm-3  O
 
 
 void WofostModel::WATFD_initialize() {
-    //old rooting depth
-    crop.RDOLD = crop.RD;
+	//old rooting depth
+	crop.s.RDOLD = crop.s.RD;
 //!! Check whether p.SMLIM is within boundaries (TvdW, 24-jul-97)
-   if (soil.p.SMLIM < soil.p.SMW) soil.p.SMLIM = soil.p.SMW;
-   if (soil.p.SMLIM > soil.p.SM0) soil.p.SMLIM = soil.p.SM0;
+	if (soil.p.SMLIM < soil.p.SMW) soil.p.SMLIM = soil.p.SMW;
+	if (soil.p.SMLIM > soil.p.SM0) soil.p.SMLIM = soil.p.SM0;
 //!! User is NOT notified of changes in p.SMLIM
 
-   soil.ss = soil.p.SSI;
+	soil.ss = soil.p.SSI;
   //  initial moisture content in rooted zone
   //!!  original: p.SMLIM = p.SMFCF
   //!!  now p.SMLIM is input variable in SITE.DAT  (TvdW, 24-jul-97)
 
-   if (crop.p.IAIRDU == 1) soil.p.SMLIM = soil.p.SM0;
-   soil.SM = LIMIT (soil.p.SMW, soil.p.SMLIM, soil.p.SMW + soil.p.WAV / crop.RD);
+	if (crop.p.IAIRDU) soil.p.SMLIM = soil.p.SM0;
+	soil.SM = LIMIT (soil.p.SMW, soil.p.SMLIM, soil.p.SMW + soil.p.WAV / crop.s.RD);
 // initial amount of moisture in rooted zone
-   soil.W  = soil.SM * crop.RD;
-   soil.WI = soil.W;
+	soil.W  = soil.SM * crop.s.RD;
+	soil.WI = soil.W;
 // soil evaporation, days since last rain
-   soil.DSLR = 1.;
-   if (soil.SM <= (soil.p.SMW + 0.5 * (soil.p.SMFCF - soil.p.SMW))) soil.DSLR = 5.;
+	soil.DSLR = 1.;
+	if (soil.SM <= (soil.p.SMW + 0.5 * (soil.p.SMFCF - soil.p.SMW))) soil.DSLR = 5.;
 // amount of moisture between rooted zone and max.rooting depth
   //!!  p.SMLIM replaced by p.SMFCF TvdW 24-jul-97
   //!!  WLOW  = LIMIT (0., p.SMLIM*(p.RDM-RD), p.WAV+p.RDM*p.SMW-W)
-  soil.WLOW  = LIMIT (0., soil.p.SM0 * (soil.RDM - crop.RD), soil.p.WAV + soil.RDM * soil.p.SMW - soil.W);
-  soil.WLOWI =soil.WLOW;
-  soil.WWLOW = soil.W + soil.WLOW;
+	soil.WLOW  = LIMIT (0., soil.p.SM0 * (soil.RDM - crop.s.RD), soil.p.WAV + soil.RDM * soil.p.SMW - soil.W);
+	soil.WLOWI =soil.WLOW;
+	soil.WWLOW = soil.W + soil.WLOW;
 
   // summation variables of the water balance are set at zero.
-  soil.EVST   = 0.;
-  soil.EVWT   = 0.;
-  soil.TSR    = 0.;
-  soil.WDRT   = 0.;
-  soil.PERCT  = 0.;
-  soil.LOSST  = 0.;
-
+//	soil.EVST   = 0.;
+//	soil.EVWT   = 0.;
+//	soil.TSR    = 0.;	
+//	soil.WDRT   = 0.;
+//	soil.PERCT  = 0.;
+//	soil.LOSST  = 0.;
 
 //  rates are set at zero
-    soil.EVS   = 0.;
-    soil.EVW   = 0.;
-    soil.RIN   = 0.;
+	soil.EVS   = 0.;
+	soil.EVW   = 0.;
+	soil.RIN   = 0.;
 	soil.RINold = 0.;
     soil.RIRR  = 0.;
     soil.DW    = 0.;
@@ -158,22 +157,24 @@ void WofostModel::WATFD_rates() {
 
 // percolation
 // equilibrium amount of soil moisture in rooted zone
-	double WE = soil.p.SMFCF * crop.RD;
+	double WE = soil.p.SMFCF * crop.s.RD;
 // percolation from rooted zone to subsoil equals amount of excess moisture in rooted zone (not to exceed conductivity)
 	double PERC1 =  LIMIT (0., soil.p.SOPE, (soil.W - WE) - crop.TRA - soil.EVS);
 
 // loss of water at the lower end of the maximum root zone equilibrium amount of soil moisture below rooted zone
-	double WELOW = soil.p.SMFCF * (soil.RDM - crop.RD);
-	soil.LOSS  = LIMIT (0., soil.p.KSUB, (soil.WLOW - WELOW) + PERC1 );
+	if (!crop.p.IAIRDU) {
+		double WELOW = soil.p.SMFCF * (soil.RDM - crop.s.RD);
+		soil.LOSS  = LIMIT (0., soil.p.KSUB, (soil.WLOW - WELOW) + PERC1 );
+	} else {
 // for rice water losses are limited to p.K0/20
-	if (crop.p.IAIRDU == 1) soil.LOSS = std::min (soil.LOSS, 0.05 * soil.p.K0);
-
+		soil.LOSS = std::min (soil.LOSS, 0.05 * soil.p.K0);
+	}
 // percolation not to exceed uptake capacity of subsoil
-	double PERC2 = ((soil.RDM - crop.RD) * soil.p.SM0 - soil.WLOW) + soil.LOSS;
+	double PERC2 = ((soil.RDM - crop.s.RD) * soil.p.SM0 - soil.WLOW) + soil.LOSS;
 	soil.PERC  = std::min (PERC1, PERC2);
 
 // adjustment of infiltration rate
-	soil.RIN = std::min(RINPRE, (soil.p.SM0-soil.SM) * crop.RD + crop.TRA + soil.EVS + soil.PERC);
+	soil.RIN = std::min(RINPRE, (soil.p.SM0-soil.SM) * crop.s.RD + crop.TRA + soil.EVS + soil.PERC);
 	soil.RINold = soil.RIN;
 // rates of change in amounts of moisture W and WLOW
 	soil.DW    =  soil.RIN - crop.TRA - soil.EVS - soil.PERC;
@@ -203,26 +204,26 @@ void WofostModel::WATFD_rates() {
 void WofostModel::WATFD_states() {
 
 // total evaporation from surface water layer and/or soil
-	soil.EVWT += soil.EVW;
-	soil.EVST += soil.EVS;
+//	soil.EVWT += soil.EVW;
+//	soil.EVST += soil.EVS;
 
 // surface storage and runoff
 	double SSPRE = soil.ss + (atm.RAIN + soil.RIRR - soil.EVW - soil.RIN);
 	soil.ss    = std::min (SSPRE, soil.p.SSMAX);
-	soil.TSR  += SSPRE - soil.ss;
+//	soil.TSR  += SSPRE - soil.ss;
 
 // amount of water in rooted zone
-	double W_NEW = soil.W + soil.DW;
-	if (W_NEW < 0.0)  {
-		soil.EVST = soil.EVST + W_NEW;
-		soil.W = 0.0;
-	} else {
-		soil.W = W_NEW;
-	}
+	soil.W = std::max(0.0, soil.W + soil.DW);
+	//if (W_NEW < 0.0)  {
+	//	soil.EVST = soil.EVST + W_NEW;
+	//	soil.W = 0.0;
+	//} else {
+	//	soil.W = W_NEW;
+	//}
 
 // total percolation and loss of water by deep leaching
-	soil.PERCT += soil.PERC;
-	soil.LOSST += soil.LOSS;
+	//soil.PERCT += soil.PERC;
+	//soil.LOSST += soil.LOSS;
 
 // amount of water in unrooted, lower part of rootable zone
 	soil.WLOW += soil.DWLOW;
@@ -234,18 +235,19 @@ void WofostModel::WATFD_states() {
 //----------------------------------------------
 // calculation of amount of soil moisture in new rootzone
 
-   if (crop.RR > 0.001)  {
+	if (crop.r.RR > 0.001)  {
 // water added to root zone by root growth, in cm
-      double WDR  = soil.WLOW * (crop.RR)/(soil.RDM - crop.RDOLD);
+		double WDR  = soil.WLOW * (crop.r.RR)/(soil.RDM - crop.s.RDOLD);
 // total water addition to rootzone by root growth
-      soil.WDRT += WDR;
+//		soil.WDRT += WDR;
 // amount of soil moisture in extended rootzone
-      soil.W += WDR;
-   }
+		soil.W += WDR;
+	}
 // mean soil moisture content in rooted zone
-   soil.SM = soil.W / crop.RD;
+	soil.SM = soil.W / crop.s.RD;
   // calculating mean soil moisture content over growing period
    //soil.SUMSM += soil.SM;
   // save rooting depth
-   crop.RDOLD = crop.RD;
+	crop.s.RDOLD = crop.s.RD;
 }
+
