@@ -37,6 +37,9 @@ RCPP_EXPOSED_CLASS(WofostModel)
 RCPP_EXPOSED_CLASS(WofostOutput)
 RCPP_EXPOSED_CLASS(WofostForcer)
 
+RCPP_EXPOSED_CLASS(WofostSoilCollection)
+
+
 
 RCPP_MODULE(wofost){
     using namespace Rcpp;
@@ -182,9 +185,18 @@ RCPP_MODULE(wofost){
 	*/
 	
     class_<WofostSoil>("WofostSoil")
+		.constructor()
 		.field("p", &WofostSoil::p, "soil parameters")
 		//.field("pn", &WofostSoil::pn, "soil nutrient parameters")
 	;
+
+
+    class_<WofostSoilCollection>("WofostSoilCollection")
+		.constructor()
+		.method("length", &WofostSoilCollection::size, "length")
+		.method("add", &WofostSoilCollection::push_back, "add")
+	;
+
 	
     class_<WofostOutput>("WofostOutput")
 		.field("names", &WofostOutput::names, "names")
@@ -224,7 +236,9 @@ RCPP_MODULE(wofost){
 
     class_<WofostModel>("WofostModel")
 		.constructor()
-		.method("run", &WofostModel::model_run, "run the model")		
+		.method("run", &WofostModel::run, "run the model")		
+		.method("run_batch", &WofostModel::run_batch, "run the model")		
+
 		//.method("setWeather", &setWeather)
 		.field("crop", &WofostModel::crop, "crop")
 		.field("soil", &WofostModel::soil, "soil")

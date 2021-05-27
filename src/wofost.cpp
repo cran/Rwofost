@@ -66,6 +66,8 @@ void WofostModel::model_output(){
 				crop.s.TWRT, crop.s.TWLV, crop.s.TWST, crop.s.TWSO, crop.s.GRLV, crop.SLAT
 			}
 		);
+	} else if (control.output_option == "BATCH") {
+		output.values.push_back(crop.s.WSO);
 	} else {
 		output.values.insert(output.values.end(),
 			{double(step), crop.s.TSUM, crop.s.DVS, crop.s.LAI,
@@ -77,8 +79,7 @@ void WofostModel::model_output(){
 }
 
 
-
-void WofostModel::model_initialize() {
+void WofostModel::initialize() {
 
 	fatalError = false;
 	if (wth.date.size() < 1) {
@@ -87,19 +88,21 @@ void WofostModel::model_initialize() {
 	    fatalError = true;
 	}
 
+
 // start time (relative to weather data)
 	if (control.modelstart < wth.date[0]) {
 		std::string m = "model cannot start before beginning of the weather data";
 	    messages.push_back(m);
 	    fatalError = true;
-		//return;
+		return;
 	} else if (control.modelstart > wth.date[wth.date.size()-1]) {
 		std::string m = "model cannot start after the end of the weather data";
 	    messages.push_back(m);
 	    fatalError = true;
-		//return;
+		return;
 	} else {
 		time=0;
+		// use find instead!
 		while (wth.date[time] < control.modelstart) {
 			time++;
 		}
@@ -126,6 +129,8 @@ void WofostModel::model_initialize() {
 			"DSINBE", "SINLD", "EVWMX", "TSUM", "DVR", "DVS", "EVS", "LAI", "LASUM", "SAI", "PGASS", "RD", "SM", "FL", "FO", "FR", "FS", "PMRES", "TAGP",
 			"TRA", "TRAMX", "RFTRA", "WRT", "WLV", "WST", "WSO",
 			"TWRT", "TWLV", "TWST", "TWSO", "GRLV", "SLAT"};
+	} else if (control.output_option == "BATCH") {
+		output.names = {"WSO"};
 	} else {
 		output.names = {"step", "TSUM", "DVS", "LAI", "WRT", "WLV", "WST", "WSO", "TRA", "EVS", "EVW", "SM"};
 	}
@@ -206,14 +211,14 @@ void WofostModel::force_states() {
 }
 
 
-void WofostModel::model_run() {
+void WofostModel::run() {
 
 	step = 1;
 	//npk_step = 0;
 	unsigned cropstart_step = step + control.cropstart;
 
-	model_initialize();
-
+	initialize();
+	if (fatalError) return;
 // model can start long before crop and run the soil water balance
 	bool crop_emerged = false;
 
@@ -274,6 +279,7 @@ void WofostModel::model_run() {
 			step++;
 		}
 	}
+
 	crop.emergence = step;
 	crop_initialize();
 
@@ -294,6 +300,7 @@ void WofostModel::model_run() {
 
 
 //	crop_initialize();
+
 
 	while ((crop.alive) && (step < maxdur)) {
 
@@ -317,7 +324,7 @@ void WofostModel::model_run() {
 		time++;
 		step++;
 		if (fatalError) {
-			break;
+			return;
 		}
 	}
 	//if (control.IENCHO == 1) {
