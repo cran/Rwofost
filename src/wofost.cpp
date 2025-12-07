@@ -26,11 +26,11 @@ bool WofostModel::weather_step() {
 		atm.DTEMP = (atm.TMAX + atm.TEMP) / 2.;
 		atm.AVRAD = wth.srad[time] * 1000;
 
-	if (control.water_limited) {
-		atm.WIND = wth.wind[time];
-		atm.VAP = wth.vapr[time] * 10;
-		atm.RAIN = wth.prec[time] / 10 ; // cm !
-	}
+//		if (control.water_limited) {
+			atm.WIND = wth.wind[time];
+			atm.VAP = wth.vapr[time] * 10;
+			atm.RAIN = wth.prec[time] / 10 ; // cm !
+//		}
 	
 
 /*
@@ -144,6 +144,11 @@ void WofostModel::initialize() {
 
 	DOY = doy_from_days(wth.date[time]);
     crop.alive = true;
+
+	// for potential production
+	atm.WIND = 0;
+	atm.VAP = 0;
+	atm.RAIN = 0;		
 
 	soil_initialize();
 	/*
